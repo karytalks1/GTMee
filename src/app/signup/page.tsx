@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Rocket, Mail, Lock, User, ArrowRight } from "lucide-react";
+import { Leaf, Mail, Lock, User, ArrowRight } from "lucide-react";
 
 export default function SignupPage() {
   return (
@@ -74,7 +74,7 @@ function SignupContent() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
             <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-              <Rocket className="w-6 h-6 text-white" />
+              <Leaf className="w-6 h-6 text-white" />
             </div>
             <span className="text-2xl font-bold">GTMee</span>
           </Link>
@@ -166,7 +166,7 @@ function SignupContent() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-accent hover:bg-accent/80 rounded-xl font-semibold transition flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-3 bg-secondary hover:bg-secondary/80 text-white rounded-xl font-semibold transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? "Creating account..." : "Create account"}
               {!loading && <ArrowRight className="w-4 h-4" />}

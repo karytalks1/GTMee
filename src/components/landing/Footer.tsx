@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Rocket } from "lucide-react";
+import { Leaf } from "lucide-react";
 
 export function Footer() {
   return (
@@ -9,7 +9,7 @@ export function Footer() {
           <div>
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-                <Rocket className="w-4.5 h-4.5 text-background" />
+                <Leaf className="w-4.5 h-4.5 text-background" />
               </div>
               <span className="text-lg font-bold tracking-tight">GTMee</span>
             </div>

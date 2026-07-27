@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
-import { Rocket, Mail, Lock, ArrowRight } from "lucide-react";
+import { Leaf, Mail, Lock, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -33,14 +33,14 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-accent text-background/10 rounded-full blur-[128px]" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-secondary/8 rounded-full blur-[128px]" />
       </div>
 
       <div className="relative w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-accent text-background flex items-center justify-center">
-              <Rocket className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
+              <Leaf className="w-6 h-6 text-white" />
             </div>
             <span className="text-2xl font-bold">GTMee</span>
           </Link>
@@ -121,7 +121,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-accent text-background hover:bg-accent text-background/80 rounded-xl font-semibold transition flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-3 bg-secondary hover:bg-secondary/80 text-white rounded-xl font-semibold transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? "Signing in..." : "Sign in"}
               {!loading && <ArrowRight className="w-4 h-4" />}

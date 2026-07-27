@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X, Rocket } from "lucide-react";
+import { Menu, X, Leaf } from "lucide-react";
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
@@ -13,7 +13,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-              <Rocket className="w-4.5 h-4.5 text-background" />
+              <Leaf className="w-4.5 h-4.5 text-background" />
             </div>
             <span className="text-xl font-bold tracking-tight">GTMee</span>
           </Link>
@@ -33,7 +33,7 @@ export function Navbar() {
             </Link>
             <Link
               href="/signup"
-              className="px-4 py-2 bg-accent hover:bg-accent/80 text-background rounded-lg text-sm font-semibold transition"
+              className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-white rounded-lg text-sm font-semibold transition"
             >
               Start free
             </Link>
@@ -65,7 +65,7 @@ export function Navbar() {
             ))}
             <Link
               href="/signup"
-              className="block px-4 py-2 bg-accent rounded-lg text-center text-sm font-semibold text-background"
+              className="block px-4 py-2 bg-secondary rounded-lg text-center text-sm font-semibold text-white"
               onClick={() => setOpen(false)}
             >
               Start free

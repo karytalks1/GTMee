@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
-  Rocket,
+  Leaf,
   LayoutDashboard,
   Users,
   Mail,
@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
-  { href: "/dashboard/campaigns", icon: Rocket, label: "Campaigns" },
+  { href: "/dashboard/campaigns", icon: Leaf, label: "Campaigns" },
   { href: "/dashboard/leads", icon: Users, label: "Leads" },
   { href: "/dashboard/emails", icon: Mail, label: "Emails" },
   { href: "/dashboard/analytics", icon: BarChart3, label: "Analytics" },
@@ -40,7 +40,7 @@ export default function DashboardLayout({
         <div className="p-4 border-b border-border">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-              <Rocket className="w-5 h-5 text-white" />
+              <Leaf className="w-5 h-5 text-white" />
             </div>
             <span className="text-lg font-bold">GTMee</span>
           </Link>
@@ -113,7 +113,7 @@ export default function DashboardLayout({
         <header className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-              <Rocket className="w-5 h-5 text-white" />
+              <Leaf className="w-5 h-5 text-white" />
             </div>
             <span className="text-lg font-bold">GTMee</span>
           </Link>

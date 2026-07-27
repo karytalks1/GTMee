@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { DM_Sans } from "next/font/google";
+import { Outfit } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
 
-const dmSans = DM_Sans({
+const outfit = Outfit({
   subsets: ["latin"],
-  variable: "--font-dm-sans",
+  variable: "--font-outfit",
 });
 
 export const metadata: Metadata = {
@@ -22,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${dmSans.variable} dark`}>
-      <body className="min-h-screen bg-[#0a0a0f] text-white font-[family-name:var(--font-dm-sans)] antialiased">
+    <html lang="en" className={`${outfit.variable} dark`}>
+      <body className="min-h-screen bg-background text-foreground font-[family-name:var(--font-outfit)] antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

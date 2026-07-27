@@ -29,8 +29,8 @@ export function Hero() {
   return (
     <section className="relative pt-36 pb-24 px-4 overflow-hidden">
       <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-accent/8 rounded-full blur-[140px]" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-secondary/6 rounded-full blur-[140px]" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent/15 to-transparent" />
       </div>
 
       <div className="relative max-w-4xl mx-auto text-center">
@@ -65,7 +65,7 @@ export function Hero() {
           />
           <button
             onClick={handleLaunch}
-            className="px-7 py-3.5 bg-accent hover:bg-accent/85 text-background rounded-xl font-semibold transition flex items-center justify-center gap-2 text-sm animate-pulse-glow"
+            className="px-7 py-3.5 bg-secondary hover:bg-secondary/85 text-white rounded-xl font-semibold transition flex items-center justify-center gap-2 text-sm animate-pulse-glow"
           >
             Go <ArrowRight className="w-4 h-4" />
           </button>

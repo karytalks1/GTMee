@@ -74,7 +74,7 @@ export function Pricing() {
 
           <Link
             href="/signup"
-            className="block w-full py-3.5 bg-accent hover:bg-accent/85 text-background rounded-xl font-semibold text-center text-sm transition"
+            className="block w-full py-3.5 bg-secondary hover:bg-secondary/85 text-white rounded-xl font-semibold text-center text-sm transition"
           >
             Start with free credits
           </Link>
