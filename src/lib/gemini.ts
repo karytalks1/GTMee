@@ -1,8 +1,24 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Groq from "groq-sdk";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || "" });
 
-export const gemini = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+async function chat(prompt: string): Promise<string> {
+  const completion = await groq.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a B2B sales intelligence assistant. Always respond with valid JSON only, no markdown fences.",
+      },
+      { role: "user", content: prompt },
+    ],
+    model: "llama-3.3-70b-versatile",
+    temperature: 0.7,
+    response_format: { type: "json_object" },
+  });
+
+  return completion.choices[0]?.message?.content || "{}";
+}
 
 export async function analyzeWebsite(content: string, url: string) {
   const prompt = `Analyze this company website and extract:
@@ -26,23 +42,17 @@ Respond in JSON format:
   "companySize": ""
 }`;
 
-  const result = await gemini.generateContent(prompt);
-  const text = result.response.text();
-  const json = text.replace(/```json\n?|\n?```/g, "").trim();
-  return JSON.parse(json);
+  return JSON.parse(await chat(prompt));
 }
 
 export async function findCompetitors(companyInfo: Record<string, unknown>) {
   const prompt = `Based on this company profile, identify 5-8 likely competitors:
 ${JSON.stringify(companyInfo)}
 
-Return JSON array:
-[{"name": "", "website": "", "similarity": "high/medium/low"}]`;
+Return JSON: {"competitors": [{"name": "", "website": "", "similarity": "high/medium/low"}]}`;
 
-  const result = await gemini.generateContent(prompt);
-  const text = result.response.text();
-  const json = text.replace(/```json\n?|\n?```/g, "").trim();
-  return JSON.parse(json);
+  const result = JSON.parse(await chat(prompt));
+  return result.competitors || result;
 }
 
 export async function generateICP(
@@ -55,12 +65,10 @@ Company: ${JSON.stringify(companyInfo)}
 Competitors: ${JSON.stringify(competitors)}
 
 Generate 5 ICP segments with fit scores. Return JSON:
-[{"segment": "", "fitScore": 85, "description": "", "jobTitles": [], "industries": []}]`;
+{"segments": [{"segment": "", "fitScore": 85, "description": "", "jobTitles": [], "industries": []}]}`;
 
-  const result = await gemini.generateContent(prompt);
-  const text = result.response.text();
-  const json = text.replace(/```json\n?|\n?```/g, "").trim();
-  return JSON.parse(json);
+  const result = JSON.parse(await chat(prompt));
+  return result.segments || result;
 }
 
 export async function writeEmail(
@@ -85,10 +93,7 @@ Rules:
 Return JSON:
 {"subject": "", "body": ""}`;
 
-  const result = await gemini.generateContent(prompt);
-  const text = result.response.text();
-  const json = text.replace(/```json\n?|\n?```/g, "").trim();
-  return JSON.parse(json);
+  return JSON.parse(await chat(prompt));
 }
 
 export async function handleReply(
@@ -110,8 +115,5 @@ Analyze the sentiment and draft a reply. Return JSON:
   "shouldBookMeeting": false
 }`;
 
-  const result = await gemini.generateContent(prompt);
-  const text = result.response.text();
-  const json = text.replace(/```json\n?|\n?```/g, "").trim();
-  return JSON.parse(json);
+  return JSON.parse(await chat(prompt));
 }
