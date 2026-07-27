@@ -47,7 +47,7 @@ export async function POST(
       } | null)?.segments || [];
 
     const competitors =
-      (campaign.competitorData as { name: string; website?: string }[] | null) || [];
+      (campaign.competitors as { name: string; website?: string }[] | null) || [];
 
     const [hunterLeads, apolloLeads, scrapedLeads, siteLeads] =
       await Promise.all([
