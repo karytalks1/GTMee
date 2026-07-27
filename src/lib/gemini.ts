@@ -33,7 +33,7 @@ async function chatGemini(prompt: string): Promise<string> {
   return result.response.text();
 }
 
-async function chat(prompt: string): Promise<string> {
+export async function chat(prompt: string): Promise<string> {
   const hasGroq = !!process.env.GROQ_API_KEY;
   const hasGemini = !!process.env.GEMINI_API_KEY;
 

@@ -19,7 +19,6 @@ import {
   Target,
   Send,
   Zap,
-  Eye,
   PenLine,
   Radar,
 } from "lucide-react";
@@ -215,41 +214,16 @@ function WizardFlow() {
 
   return (
     <div className="max-w-4xl mx-auto pb-12">
-      {/* Phase indicator — floating pills */}
+      {/* Minimal phase label */}
       {phase !== "start" && (
-        <div className="flex items-center gap-1.5 mb-8 flex-wrap">
-          {[
-            { id: "intel", icon: Eye, label: "Intel" },
-            { id: "segments", icon: Target, label: "Audiences" },
-            { id: "people", icon: Users, label: "Prospects" },
-            { id: "launch", icon: Send, label: "Outreach" },
-          ].map((p) => {
-            const pIdx = phaseOrder.indexOf(p.id as Phase);
-            const done = phaseIdx > pIdx;
-            const active = phaseIdx === pIdx || (p.id === "intel" && (phase === "scanning" || phase === "intel"));
-            const scanning = active && (phase === "scanning" || phase === "prospecting" || phase === "drafting" || (phase === "segments" && segments.length === 0));
-            return (
-              <div
-                key={p.id}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${
-                  done
-                    ? "bg-accent/15 text-accent-light"
-                    : active
-                      ? "bg-accent text-background shadow-[0_0_20px_rgba(0,200,150,0.3)]"
-                      : "bg-card text-muted/50 border border-border"
-                }`}
-              >
-                {done ? (
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                ) : scanning ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <p.icon className="w-3.5 h-3.5" />
-                )}
-                {p.label}
-              </div>
-            );
-          })}
+        <div className="mb-6 text-xs text-muted tracking-widest uppercase font-semibold">
+          {phase === "scanning" && "Scanning..."}
+          {phase === "intel" && "Intelligence gathered"}
+          {phase === "segments" && (segments.length > 0 ? "Audiences mapped" : "Mapping audiences...")}
+          {phase === "prospecting" && "Finding prospects..."}
+          {phase === "people" && "Prospects found"}
+          {phase === "drafting" && "Writing emails..."}
+          {phase === "launch" && "Ready to launch"}
         </div>
       )}
 

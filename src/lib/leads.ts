@@ -1,3 +1,5 @@
+import { chat } from "./gemini";
+
 export async function searchHunter(domain: string) {
   const apiKey = process.env.HUNTER_API_KEY;
   if (!apiKey) return [];
@@ -104,4 +106,69 @@ export async function findLeadsFromScraping(
   }
 
   return leads;
+}
+
+export async function generateAILeads(
+  segments: { segment: string; jobTitles: string[]; industries?: string[] }[],
+  companyInfo?: { companyName?: string; industry?: string }
+) {
+  const segmentDescriptions = segments
+    .slice(0, 5)
+    .map(
+      (s) =>
+        `Segment: ${s.segment}, Job Titles: ${s.jobTitles.join(", ")}${s.industries ? `, Industries: ${s.industries.join(", ")}` : ""}`
+    )
+    .join("\n");
+
+  const prompt = `Generate 10 realistic B2B prospect profiles that would match these ICP segments.
+${companyInfo ? `The selling company is "${companyInfo.companyName || "Unknown"}" in the "${companyInfo.industry || "technology"}" space.` : ""}
+
+ICP Segments:
+${segmentDescriptions}
+
+For each prospect create a realistic profile with:
+- A realistic full name
+- A job title from the segments above
+- A plausible company name in a relevant industry
+- A constructed email using the pattern firstname@companydomain.com (lowercase, no spaces)
+- A LinkedIn URL placeholder
+
+Return JSON:
+{
+  "leads": [
+    {
+      "name": "First Last",
+      "title": "Job Title",
+      "company": "Company Name",
+      "email": "first@company.com",
+      "linkedIn": ""
+    }
+  ]
+}
+
+Generate between 8 and 15 leads. Make them diverse across the segments. Use realistic but fictional names and companies.`;
+
+  try {
+    const result = JSON.parse(await chat(prompt));
+    const leads = result.leads || [];
+    return leads.map(
+      (l: {
+        name: string;
+        title: string;
+        company: string;
+        email: string;
+        linkedIn?: string;
+      }) => ({
+        name: l.name || "Unknown",
+        title: l.title || "",
+        company: l.company || "",
+        email: l.email || "",
+        linkedIn: l.linkedIn || "",
+        source: "ai-generated",
+      })
+    );
+  } catch (error) {
+    console.error("AI lead generation failed:", error);
+    return [];
+  }
 }

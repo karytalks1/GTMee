@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { searchHunter, findLeadsFromScraping } from "@/lib/leads";
+import {
+  searchHunter,
+  searchApollo,
+  findLeadsFromScraping,
+  generateAILeads,
+} from "@/lib/leads";
 
 export async function POST(
   _req: NextRequest,
@@ -39,11 +44,31 @@ export async function POST(
     const hunterLeads = await searchHunter(domain);
 
     const icpSegments =
-      (campaign.icpData as { segments: { segment: string; jobTitles: string[] }[] } | null)
-        ?.segments || [];
+      (campaign.icpData as {
+        segments: { segment: string; jobTitles: string[]; industries?: string[] }[];
+      } | null)?.segments || [];
+
+    const apolloLeads =
+      icpSegments.length > 0
+        ? await searchApollo({
+            jobTitles: icpSegments.flatMap((s) => s.jobTitles).slice(0, 5),
+            industries: icpSegments
+              .flatMap((s) => s.industries || [])
+              .slice(0, 3),
+          })
+        : [];
+
     const scrapedLeads = await findLeadsFromScraping(icpSegments);
 
-    const allLeads = [...hunterLeads, ...scrapedLeads];
+    const allLeads = [...hunterLeads, ...apolloLeads, ...scrapedLeads];
+
+    if (allLeads.length < 5 && icpSegments.length > 0) {
+      const aiLeads = await generateAILeads(icpSegments, {
+        companyName: campaign.name,
+        industry: domain,
+      });
+      allLeads.push(...aiLeads);
+    }
 
     for (const lead of allLeads) {
       await prisma.lead.create({

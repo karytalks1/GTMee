@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, type FC } from "react";
 import {
   Globe,
   Crosshair,
@@ -9,27 +10,24 @@ import {
   Gauge,
 } from "lucide-react";
 
-const steps = [
+const cards = [
   {
     icon: Globe,
-    title: "Understands your business",
-    copy: "Paste a URL. The agent crawls your site, maps your offer, and benchmarks you against similar players in seconds.",
-    demo: (
+    tag: "Intelligence",
+    title: "Reads your market like a strategist",
+    copy: "Give it your URL. It reverse-engineers your positioning, maps competitors, and builds a profile your sales team would take weeks to assemble.",
+    visual: (
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-xs">
           <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-          <span className="text-accent-light">Reading site...</span>
+          <span className="text-accent-light">Analyzing site...</span>
         </div>
         <div className="p-3 rounded-lg bg-background/60 text-sm">
           <p className="font-medium text-foreground">acmehq.io</p>
           <p className="text-muted text-xs mt-1">
-            Dev-tool for API monitoring &mdash; targets engineering leads at
-            mid-size SaaS companies
+            Dev-tool for API monitoring — targets engineering leads at mid-size SaaS
           </p>
         </div>
-        <p className="text-[11px] text-accent-light font-medium">
-          Mapping competitors...
-        </p>
         {["sentry.io", "datadog.com", "honeycomb.io"].map((c) => (
           <div key={c} className="flex items-center gap-2 pl-3 text-[11px] text-muted">
             <div className="w-1 h-1 rounded-full bg-muted/60" />
@@ -41,13 +39,11 @@ const steps = [
   },
   {
     icon: Crosshair,
-    title: "Profiles the ideal buyer",
-    copy: "AI clusters your best-fit segments and ranks each by purchase intent so you never waste a send.",
-    demo: (
+    tag: "Targeting",
+    title: "Zeroes in on who actually buys",
+    copy: "No guesswork. The AI clusters high-intent buyer personas and ranks them — so your first batch of outreach hits the right inboxes.",
+    visual: (
       <div className="space-y-1.5">
-        <div className="grid grid-cols-2 text-[11px] font-medium text-muted px-2 mb-1">
-          <span>Segment</span><span className="text-right">Match</span>
-        </div>
         {[
           { name: "VP Engineering", score: 94 },
           { name: "Platform Leads", score: 89 },
@@ -56,9 +52,14 @@ const steps = [
         ].map((s) => (
           <div key={s.name} className="flex items-center justify-between px-3 py-2 rounded-lg bg-background/60 text-sm">
             <span className="text-foreground/90">{s.name}</span>
-            <span className={`font-mono text-xs ${s.score >= 85 ? "text-accent-light" : s.score >= 75 ? "text-warning" : "text-muted"}`}>
-              {s.score}%
-            </span>
+            <div className="flex items-center gap-2">
+              <div className="w-16 h-1.5 rounded-full bg-border overflow-hidden">
+                <div className="h-full rounded-full bg-accent" style={{ width: `${s.score}%` }} />
+              </div>
+              <span className={`font-mono text-xs ${s.score >= 85 ? "text-accent-light" : "text-warning"}`}>
+                {s.score}
+              </span>
+            </div>
           </div>
         ))}
       </div>
@@ -66,24 +67,24 @@ const steps = [
   },
   {
     icon: UserSearch,
-    title: "Hunts down real contacts",
-    copy: "Cross-references public directories, enrichment APIs, and web data to surface verified names and emails.",
-    demo: (
+    tag: "Prospecting",
+    title: "Finds the humans behind the companies",
+    copy: "Pulls verified names, titles, and emails from across the web — real people at companies that match your ideal profile.",
+    visual: (
       <div className="space-y-2">
         {[
-          { name: "Lin Zhao", role: "VP Eng", co: "Stripewave", email: "lin@stripewave.io" },
-          { name: "Derek Osei", role: "Platform Lead", co: "NovaPay", email: "derek@novapay.com" },
-          { name: "Marta Fiore", role: "CTO", co: "Cloudlane", email: "marta@cloudlane.dev" },
+          { name: "Lin Zhao", role: "VP Eng", co: "Stripewave" },
+          { name: "Derek Osei", role: "Platform Lead", co: "NovaPay" },
+          { name: "Marta Fiore", role: "CTO", co: "Cloudlane" },
         ].map((l) => (
           <div key={l.name} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-background/60">
-            <div className="w-8 h-8 rounded-full bg-accent/15 flex items-center justify-center text-[11px] font-bold text-accent-light">
+            <div className="w-8 h-8 rounded-full bg-secondary/15 flex items-center justify-center text-[11px] font-bold text-secondary">
               {l.name.split(" ").map((n) => n[0]).join("")}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{l.name}</p>
               <p className="text-[11px] text-muted truncate">{l.role} &middot; {l.co}</p>
             </div>
-            <span className="text-[11px] text-muted hidden sm:block">{l.email}</span>
           </div>
         ))}
       </div>
@@ -91,21 +92,21 @@ const steps = [
   },
   {
     icon: PenLine,
-    title: "Drafts emails that feel handwritten",
-    copy: "Every message opens with something specific to the recipient — no templates, no merge-tag smell.",
-    demo: (
+    tag: "Writing",
+    title: "Crafts emails that don't feel mass-sent",
+    copy: "Each message opens with something specific to the recipient's company. No templates, no [FIRST_NAME] smell — just sharp, human copy.",
+    visual: (
       <div className="p-3.5 rounded-lg bg-background/60 text-sm space-y-2">
         <div className="flex items-center gap-2 text-[11px] text-muted">
-          <span className="font-medium">Subject:</span>
+          <span className="font-medium">Subj:</span>
           <span className="text-foreground">Quick note on Stripewave&apos;s uptime page</span>
         </div>
         <div className="text-xs text-muted leading-relaxed">
           <p>Hey Lin,</p>
           <p className="mt-2">
-            Noticed <span className="text-accent-light">Stripewave publishes a public status page</span>{" "}
+            Noticed <span className="text-secondary">Stripewave publishes a public status page</span>{" "}
             — that tells me you care about reliability signals. We help teams
-            like yours catch regressions before your customers tweet about
-            them...
+            like yours catch regressions before customers notice...
           </p>
         </div>
       </div>
@@ -113,15 +114,15 @@ const steps = [
   },
   {
     icon: MessagesSquare,
-    title: "Conversations on autopilot",
-    copy: "Reads tone, answers questions, handles pushback, and locks in a calendar slot when interest peaks.",
-    demo: (
+    tag: "Replies",
+    title: "Handles replies like a real SDR",
+    copy: "Reads tone, answers objections, and when someone's interested — drops a calendar link and locks in the meeting.",
+    visual: (
       <div className="space-y-2">
         {[
           { side: "in", text: "Looks interesting — what's the pricing?" },
-          { side: "out", text: "Starts at $0 for the first 500 events/day. Happy to walk you through the dashboard live — 15 min?" },
-          { side: "in", text: "Sure, Thursday after 2pm works." },
-          { side: "out", text: "Locked in — Thu 2:30 PM. Calendar invite on its way." },
+          { side: "out", text: "Starts at $0 for the first 500 events/day. Want a 15-min walkthrough?" },
+          { side: "in", text: "Sure, Thursday after 2pm." },
         ].map((m, i) => (
           <div key={i} className={`flex ${m.side === "out" ? "justify-end" : "justify-start"}`}>
             <div className={`px-3 py-2 rounded-2xl text-xs max-w-[85%] ${
@@ -131,30 +132,33 @@ const steps = [
             </div>
           </div>
         ))}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-[11px] font-medium">
-          <div className="w-1.5 h-1.5 rounded-full bg-accent" />
-          Meeting confirmed &middot; Thu 14:30
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/10 text-secondary text-[11px] font-medium">
+          <div className="w-1.5 h-1.5 rounded-full bg-secondary" />
+          Meeting booked &middot; Thu 14:30
         </div>
       </div>
     ),
   },
   {
     icon: Gauge,
-    title: "Optimises while you sleep",
-    copy: "Measures reply quality per segment, kills what's flat, and doubles spend where conversations convert.",
-    demo: (
+    tag: "Optimization",
+    title: "Learns what works, kills what doesn't",
+    copy: "Tracks opens, replies, and conversions per segment. Automatically reallocates your budget toward the audiences that convert.",
+    visual: (
       <div className="space-y-2">
         {[
-          { name: "VP Engineering", status: "Scaling", cost: "$1.20", color: "text-accent-light" },
-          { name: "Platform Leads", status: "Scaling", cost: "$1.55", color: "text-accent-light" },
-          { name: "DevOps Mgrs", status: "Testing", cost: "$2.80", color: "text-warning" },
-          { name: "Consultants", status: "Stopped", cost: "$7.10", color: "text-danger" },
+          { name: "VP Engineering", status: "Scaling", cost: "$1.20", color: "text-accent-light", bar: 90 },
+          { name: "Platform Leads", status: "Scaling", cost: "$1.55", color: "text-accent-light", bar: 80 },
+          { name: "DevOps Mgrs", status: "Testing", cost: "$2.80", color: "text-warning", bar: 50 },
+          { name: "Consultants", status: "Paused", cost: "$7.10", color: "text-danger", bar: 15 },
         ].map((r) => (
-          <div key={r.name} className="flex items-center justify-between px-3 py-2 rounded-lg bg-background/60 text-sm">
-            <span className="text-foreground/80 text-xs">{r.name}</span>
-            <div className="flex items-center gap-4">
-              <span className={`text-[11px] ${r.color}`}>{r.status}</span>
-              <span className="text-[11px] font-mono text-muted">{r.cost}</span>
+          <div key={r.name} className="px-3 py-2 rounded-lg bg-background/60">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-foreground/80">{r.name}</span>
+              <span className={r.color}>{r.status}</span>
+            </div>
+            <div className="w-full h-1 rounded-full bg-border overflow-hidden">
+              <div className={`h-full rounded-full ${r.bar > 60 ? "bg-accent" : r.bar > 30 ? "bg-warning" : "bg-danger"}`} style={{ width: `${r.bar}%` }} />
             </div>
           </div>
         ))}
@@ -164,6 +168,8 @@ const steps = [
 ];
 
 export function Pipeline() {
+  const [active, setActive] = useState(0);
+
   return (
     <section id="how" className="py-28 px-4">
       <div className="max-w-6xl mx-auto">
@@ -171,33 +177,57 @@ export function Pipeline() {
           One URL in. <span className="gradient-text">Meetings out.</span>
         </h2>
         <p className="text-center text-muted max-w-lg mx-auto mb-16">
-          Six steps, fully automated, running 24/7.
+          Six capabilities, zero manual work.
         </p>
 
-        <div className="space-y-16">
-          {steps.map((step, i) => (
-            <div
-              key={step.title}
-              className={`flex flex-col ${i % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"} gap-10 items-center`}
+        {/* Tab selector */}
+        <div className="flex flex-wrap justify-center gap-2 mb-10">
+          {cards.map((card, i) => (
+            <button
+              key={card.tag}
+              onClick={() => setActive(i)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                active === i
+                  ? "bg-secondary text-white shadow-[0_4px_16px_rgba(189,68,68,0.25)]"
+                  : "bg-card border border-border text-muted hover:text-foreground hover:border-border/80"
+              }`}
             >
-              <div className="flex-1 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-                    <step.icon className="w-5 h-5 text-accent-light" />
-                  </div>
-                  <span className="text-[11px] font-semibold text-muted uppercase tracking-widest">
-                    Step {i + 1}
-                  </span>
+              <card.icon className="w-4 h-4" />
+              {card.tag}
+            </button>
+          ))}
+        </div>
+
+        {/* Active card */}
+        {(() => {
+          const ActiveIcon = cards[active].icon;
+          return (
+            <div className="grid md:grid-cols-2 gap-8 items-start">
+              <div className="space-y-5">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-semibold tracking-wide">
+                  <ActiveIcon className="w-3.5 h-3.5" />
+                  {cards[active].tag}
                 </div>
-                <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">{step.title}</h3>
-                <p className="text-muted leading-relaxed">{step.copy}</p>
+                <h3 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight">{cards[active].title}</h3>
+                <p className="text-muted leading-relaxed text-base">{cards[active].copy}</p>
               </div>
-              <div className="flex-1 w-full max-w-md">
-                <div className="p-5 rounded-2xl border border-border bg-card glow-card">
-                  {step.demo}
-                </div>
+              <div className="p-6 rounded-2xl border border-border bg-card glow-card">
+                {cards[active].visual}
               </div>
             </div>
+          );
+        })()}
+
+        {/* Dots */}
+        <div className="flex justify-center gap-2 mt-10">
+          {cards.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setActive(i)}
+              className={`w-2 h-2 rounded-full transition-all ${
+                active === i ? "bg-secondary w-6" : "bg-border hover:bg-muted"
+              }`}
+            />
           ))}
         </div>
       </div>

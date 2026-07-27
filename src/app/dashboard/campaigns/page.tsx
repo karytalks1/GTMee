@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Plus,
-  Rocket,
+  Leaf,
   Globe,
   Users,
   Mail,
@@ -64,7 +64,7 @@ export default function CampaignsPage() {
         <div className="text-center py-12 text-muted">Loading campaigns...</div>
       ) : campaigns.length === 0 ? (
         <div className="text-center py-16 rounded-2xl border border-dashed border-border">
-          <Rocket className="w-12 h-12 text-accent-light mx-auto mb-4" />
+          <Leaf className="w-12 h-12 text-accent-light mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">No campaigns yet</h3>
           <p className="text-muted mb-6">
             Create your first campaign to start finding leads
