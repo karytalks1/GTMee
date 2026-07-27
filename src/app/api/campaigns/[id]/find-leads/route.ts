@@ -6,7 +6,7 @@ import {
   searchHunter,
   searchApollo,
   findLeadsFromScraping,
-  generateAILeads,
+  findLeadsFromCompanySites,
 } from "@/lib/leads";
 
 export async function POST(
@@ -41,33 +41,42 @@ export async function POST(
         : `https://${campaign.website}`
     ).hostname;
 
-    const hunterLeads = await searchHunter(domain);
-
     const icpSegments =
       (campaign.icpData as {
         segments: { segment: string; jobTitles: string[]; industries?: string[] }[];
       } | null)?.segments || [];
 
-    const apolloLeads =
-      icpSegments.length > 0
-        ? await searchApollo({
-            jobTitles: icpSegments.flatMap((s) => s.jobTitles).slice(0, 5),
-            industries: icpSegments
-              .flatMap((s) => s.industries || [])
-              .slice(0, 3),
-          })
-        : [];
+    const competitors =
+      (campaign.competitorData as { name: string; website?: string }[] | null) || [];
 
-    const scrapedLeads = await findLeadsFromScraping(icpSegments);
+    const [hunterLeads, apolloLeads, scrapedLeads, siteLeads] =
+      await Promise.all([
+        searchHunter(domain),
+        icpSegments.length > 0
+          ? searchApollo({
+              jobTitles: icpSegments.flatMap((s) => s.jobTitles).slice(0, 5),
+              industries: icpSegments
+                .flatMap((s) => s.industries || [])
+                .slice(0, 3),
+            })
+          : Promise.resolve([]),
+        findLeadsFromScraping(icpSegments),
+        findLeadsFromCompanySites(domain, competitors),
+      ]);
 
-    const allLeads = [...hunterLeads, ...apolloLeads, ...scrapedLeads];
+    const seen = new Set<string>();
+    const allLeads: typeof hunterLeads = [];
 
-    if (allLeads.length < 5 && icpSegments.length > 0) {
-      const aiLeads = await generateAILeads(icpSegments, {
-        companyName: campaign.name,
-        industry: domain,
-      });
-      allLeads.push(...aiLeads);
+    for (const lead of [
+      ...hunterLeads,
+      ...apolloLeads,
+      ...siteLeads,
+      ...scrapedLeads,
+    ]) {
+      const key = (lead.email || lead.name || "").toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      allLeads.push(lead);
     }
 
     for (const lead of allLeads) {
