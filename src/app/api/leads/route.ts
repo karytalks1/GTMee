@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
       campaign: { userId: session.user.id },
       ...(campaignId ? { campaignId } : {}),
     },
-    include: { campaign: { select: { name: true } } },
+    include: { campaign: { select: { id: true, name: true } } },
     orderBy: { createdAt: "desc" },
-    take: 100,
+    take: 200,
   });
 
   return NextResponse.json({ leads });
