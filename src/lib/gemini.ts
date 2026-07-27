@@ -1,23 +1,61 @@
 import Groq from "groq-sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || "" });
+const SYSTEM_PROMPT =
+  "You are a B2B sales intelligence assistant. Always respond with valid JSON only, no markdown fences.";
 
-async function chat(prompt: string): Promise<string> {
+async function chatGroq(prompt: string): Promise<string> {
+  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
   const completion = await groq.chat.completions.create({
     messages: [
-      {
-        role: "system",
-        content:
-          "You are a B2B sales intelligence assistant. Always respond with valid JSON only, no markdown fences.",
-      },
+      { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: prompt },
     ],
     model: "llama-3.3-70b-versatile",
     temperature: 0.7,
     response_format: { type: "json_object" },
   });
-
   return completion.choices[0]?.message?.content || "{}";
+}
+
+async function chatGemini(prompt: string): Promise<string> {
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash",
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0.7,
+    },
+  });
+  const result = await model.generateContent(
+    `${SYSTEM_PROMPT}\n\n${prompt}`
+  );
+  return result.response.text();
+}
+
+async function chat(prompt: string): Promise<string> {
+  const hasGroq = !!process.env.GROQ_API_KEY;
+  const hasGemini = !!process.env.GEMINI_API_KEY;
+
+  if (hasGroq) {
+    try {
+      return await chatGroq(prompt);
+    } catch (e) {
+      if (hasGemini) {
+        console.warn("Groq failed, falling back to Gemini:", e);
+        return await chatGemini(prompt);
+      }
+      throw e;
+    }
+  }
+
+  if (hasGemini) {
+    return await chatGemini(prompt);
+  }
+
+  throw new Error(
+    "No AI provider configured. Set GROQ_API_KEY or GEMINI_API_KEY in environment variables."
+  );
 }
 
 export async function analyzeWebsite(content: string, url: string) {
