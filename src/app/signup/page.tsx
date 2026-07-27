@@ -76,7 +76,7 @@ function SignupContent() {
             <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
               <Rocket className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold">gtmee</span>
+            <span className="text-2xl font-bold">GTMee</span>
           </Link>
           <h1 className="text-2xl font-bold mb-2">Create your account</h1>
           <p className="text-muted">

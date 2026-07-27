@@ -15,7 +15,7 @@ export function Navbar() {
             <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
               <Rocket className="w-4.5 h-4.5 text-background" />
             </div>
-            <span className="text-xl font-bold tracking-tight">gtmee</span>
+            <span className="text-xl font-bold tracking-tight">GTMee</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-8">

@@ -11,7 +11,7 @@ export function Footer() {
               <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
                 <Rocket className="w-4.5 h-4.5 text-background" />
               </div>
-              <span className="text-lg font-bold tracking-tight">gtmee</span>
+              <span className="text-lg font-bold tracking-tight">GTMee</span>
             </div>
             <p className="text-xs text-muted leading-relaxed">
               Outbound on autopilot. Built for founders and growth teams who&apos;d rather close than cold-call.
@@ -46,7 +46,7 @@ export function Footer() {
         </div>
 
         <div className="border-t border-border pt-6 text-center text-xs text-muted">
-          &copy; {new Date().getFullYear()} gtmee. All rights reserved.
+          &copy; {new Date().getFullYear()} GTMee. All rights reserved.
         </div>
       </div>
     </footer>
