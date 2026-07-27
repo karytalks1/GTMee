@@ -13,25 +13,18 @@ import {
   Sparkles,
   ExternalLink,
   Building2,
-  MapPin,
   Briefcase,
   ChevronDown,
-  ChevronUp,
+  ChevronRight,
   Target,
   Send,
-  UserCheck,
+  Zap,
+  Eye,
+  PenLine,
+  Radar,
 } from "lucide-react";
 
-type Step = "input" | "research" | "competitors" | "campaigns" | "customers" | "decision-makers" | "emails" | "ready";
-
-const STEPS: { key: Step; label: string; num: number }[] = [
-  { key: "research", label: "Research your company", num: 1 },
-  { key: "competitors", label: "Explore competitors", num: 2 },
-  { key: "campaigns", label: "Define campaigns", num: 3 },
-  { key: "customers", label: "Find potential customers", num: 4 },
-  { key: "decision-makers", label: "Find decision makers", num: 5 },
-  { key: "emails", label: "Write emails", num: 6 },
-];
+type Phase = "start" | "scanning" | "intel" | "segments" | "prospecting" | "people" | "drafting" | "launch";
 
 interface CompanyInfo {
   companyName: string;
@@ -54,9 +47,6 @@ interface ICPSegment {
   description: string;
   jobTitles: string[];
   industries: string[];
-  painPoint?: string;
-  criteria?: string[];
-  exampleCompanies?: string[];
 }
 
 interface Lead {
@@ -79,41 +69,45 @@ interface EmailDraft {
 export default function NewCampaignPage() {
   return (
     <Suspense fallback={<div className="text-center py-12 text-muted">Loading...</div>}>
-      <NewCampaignContent />
+      <WizardFlow />
     </Suspense>
   );
 }
 
-function NewCampaignContent() {
+function WizardFlow() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [website, setWebsite] = useState(searchParams.get("website") || "");
-  const [step, setStep] = useState<Step>("input");
+  const [phase, setPhase] = useState<Phase>("start");
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
-  const [icpSegments, setIcpSegments] = useState<ICPSegment[]>([]);
+  const [segments, setSegments] = useState<ICPSegment[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [emailDrafts, setEmailDrafts] = useState<EmailDraft[]>([]);
   const [error, setError] = useState("");
-  const [loadingMsg, setLoadingMsg] = useState("");
-  const [expandedCompetitors, setExpandedCompetitors] = useState(false);
-  const [selectedSegment, setSelectedSegment] = useState<number>(0);
-  const [selectedLead, setSelectedLead] = useState<number>(0);
-  const [campaignId, setCampaignId] = useState<string>("");
+  const [activeSegment, setActiveSegment] = useState(0);
+  const [activeDraft, setActiveDraft] = useState(0);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [campaignId, setCampaignId] = useState("");
 
-  const stepIndex = (s: Step) => {
-    if (s === "input") return -1;
-    if (s === "ready") return 6;
-    return STEPS.findIndex((x) => x.key === s);
+  const toggleSection = (key: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   };
 
-  const currentIdx = stepIndex(step);
+  const domain = website.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
-  const handleLaunch = useCallback(async () => {
+  const phaseOrder: Phase[] = ["start", "scanning", "intel", "segments", "prospecting", "people", "drafting", "launch"];
+  const phaseIdx = phaseOrder.indexOf(phase);
+
+  const handleAnalyze = useCallback(async () => {
     if (!website.trim()) return;
     setError("");
-    setStep("research");
-    setLoadingMsg("Scraping website and analyzing your business...");
+    setPhase("scanning");
 
     try {
       const res = await fetch("/api/campaigns/analyze", {
@@ -121,17 +115,14 @@ function NewCampaignContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ website: website.trim() }),
       });
-
       if (!res.ok) throw new Error("Analysis failed");
       const data = await res.json();
       setCompanyInfo(data.companyInfo);
       setCompetitors(data.competitors || []);
-      setStep("competitors");
+      setPhase("intel");
 
-      // Auto-advance to ICP/campaigns
-      setLoadingMsg("Generating ideal customer profiles...");
-      setStep("campaigns");
-
+      // Continue to segment generation
+      setPhase("segments");
       const icpRes = await fetch("/api/campaigns/icp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -140,19 +131,10 @@ function NewCampaignContent() {
           competitors: data.competitors,
         }),
       });
-
-      if (!icpRes.ok) throw new Error("ICP generation failed");
+      if (!icpRes.ok) throw new Error("Segment generation failed");
       const icpData = await icpRes.json();
-      const segments = (icpData.segments || []).map((s: ICPSegment) => ({
-        ...s,
-        painPoint: s.painPoint || s.description,
-        criteria: s.criteria || s.industries?.slice(0, 3) || [],
-        exampleCompanies: s.exampleCompanies || [],
-      }));
-      setIcpSegments(segments);
-      setStep("campaigns");
+      setSegments(icpData.segments || []);
 
-      // Create the campaign in DB
       const campaignRes = await fetch("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -160,370 +142,368 @@ function NewCampaignContent() {
           website: website.trim(),
           companyInfo: data.companyInfo,
           competitors: data.competitors,
-          icpSegments: segments,
+          icpSegments: icpData.segments,
         }),
       });
-
       if (campaignRes.ok) {
-        const campaignData = await campaignRes.json();
-        setCampaignId(campaignData.id);
+        const cData = await campaignRes.json();
+        setCampaignId(cData.id);
       }
-
+      setPhase("segments");
     } catch {
-      setError("Failed to analyze website. Please check the URL and try again.");
-      setStep("input");
+      setError("Couldn’t reach that site. Double-check the URL and retry.");
+      setPhase("start");
     }
   }, [website]);
 
-  const handleFindLeads = async () => {
+  const handleProspect = async () => {
     if (!campaignId) return;
-    setStep("customers");
-    setLoadingMsg("Searching for potential customers...");
-
+    setPhase("prospecting");
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/find-leads`, {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error("Lead finding failed");
-
+      const res = await fetch(`/api/campaigns/${campaignId}/find-leads`, { method: "POST" });
+      if (!res.ok) throw new Error("Prospecting failed");
       const leadsRes = await fetch(`/api/leads?campaignId=${campaignId}`);
       if (leadsRes.ok) {
         const data = await leadsRes.json();
         setLeads(data.leads || []);
       }
-      setStep("decision-makers");
+      setPhase("people");
     } catch {
-      setError("Failed to find leads. You can still launch the campaign.");
-      setStep("decision-makers");
+      setPhase("people");
     }
   };
 
-  const handleWriteEmails = async () => {
-    setStep("emails");
-    setLoadingMsg("Writing personalized emails...");
-
-    const leadsWithEmail = leads.filter((l) => l.email);
+  const handleDraftEmails = async () => {
+    setPhase("drafting");
+    const targets = leads.filter((l) => l.email);
     const drafts: EmailDraft[] = [];
 
-    for (const lead of leadsWithEmail.slice(0, 5)) {
+    for (const lead of targets.slice(0, 5)) {
       try {
         const res = await fetch("/api/campaigns/write-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            companyInfo: {
-              name: companyInfo?.companyName,
-              description: companyInfo?.description,
-              website,
-            },
+            companyInfo: { name: companyInfo?.companyName, description: companyInfo?.description, website },
             lead: { name: lead.name, title: lead.title, company: lead.company },
           }),
         });
         if (res.ok) {
-          const emailData = await res.json();
-          drafts.push({
-            leadName: lead.name,
-            leadTitle: lead.title,
-            leadCompany: lead.company,
-            to: lead.email,
-            subject: emailData.subject,
-            body: emailData.body,
-          });
+          const d = await res.json();
+          drafts.push({ leadName: lead.name, leadTitle: lead.title, leadCompany: lead.company, to: lead.email, subject: d.subject, body: d.body });
         }
-      } catch {
-        // skip failed emails
-      }
+      } catch { /* skip */ }
     }
 
-    if (drafts.length === 0 && leadsWithEmail.length === 0) {
+    if (drafts.length === 0) {
       for (const lead of leads.slice(0, 3)) {
         drafts.push({
-          leadName: lead.name,
-          leadTitle: lead.title,
-          leadCompany: lead.company,
-          to: "email not found",
-          subject: `${companyInfo?.companyName} x ${lead.company}`,
-          body: `Hi ${lead.name.split(" ")[0]},\n\nI noticed ${lead.company} is doing great work. We at ${companyInfo?.companyName} help companies like yours ${companyInfo?.description?.toLowerCase() || "grow faster"}.\n\nWould love to share how — open to a quick chat?\n\nBest,\n${companyInfo?.companyName}`,
+          leadName: lead.name, leadTitle: lead.title, leadCompany: lead.company,
+          to: lead.email || "pending",
+          subject: `Quick question for ${lead.company}`,
+          body: `Hey ${lead.name.split(" ")[0]},\n\nSpotted ${lead.company} and thought there might be a fit. We’re ${companyInfo?.companyName} — ${companyInfo?.description?.toLowerCase() || "we help teams grow"}.\n\nWorth a 10-min call?\n\nCheers,\n${companyInfo?.companyName}`,
         });
       }
     }
 
     setEmailDrafts(drafts);
-    setStep("ready");
+    setPhase("launch");
   };
 
-  const handleLaunchCampaign = async () => {
-    if (campaignId) {
-      router.push(`/dashboard/campaigns`);
-    }
-  };
-
-  const domain = website.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const initials = (name: string) =>
+    name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {/* Progress bar */}
-      {step !== "input" && (
-        <div className="flex items-center gap-0 overflow-x-auto pb-2">
-          {STEPS.map((s, i) => {
-            const isDone = i < currentIdx;
-            const isCurrent = i === currentIdx;
-            const isLoading = isCurrent && (step === "research" || loadingMsg) && !["competitors", "campaigns", "decision-makers", "ready"].includes(step);
+    <div className="max-w-4xl mx-auto pb-12">
+      {/* Phase indicator — floating pills */}
+      {phase !== "start" && (
+        <div className="flex items-center gap-1.5 mb-8 flex-wrap">
+          {[
+            { id: "intel", icon: Eye, label: "Intel" },
+            { id: "segments", icon: Target, label: "Audiences" },
+            { id: "people", icon: Users, label: "Prospects" },
+            { id: "launch", icon: Send, label: "Outreach" },
+          ].map((p) => {
+            const pIdx = phaseOrder.indexOf(p.id as Phase);
+            const done = phaseIdx > pIdx;
+            const active = phaseIdx === pIdx || (p.id === "intel" && (phase === "scanning" || phase === "intel"));
+            const scanning = active && (phase === "scanning" || phase === "prospecting" || phase === "drafting" || (phase === "segments" && segments.length === 0));
             return (
-              <div key={s.key} className="flex items-center flex-1 min-w-0">
-                <div className="flex items-center gap-2 whitespace-nowrap">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 shrink-0 ${
-                      isDone
-                        ? "bg-accent/20 border-accent text-accent-light"
-                        : isCurrent
-                          ? "border-accent text-accent-light bg-accent/10"
-                          : "border-border text-muted"
-                    }`}
-                  >
-                    {isDone ? <CheckCircle2 className="w-4 h-4" /> : s.num}
-                  </div>
-                  {isCurrent && (
-                    <span className="text-sm font-medium text-accent-light flex items-center gap-2">
-                      {isLoading && <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />}
-                      {s.label}
-                    </span>
-                  )}
-                </div>
-                {i < STEPS.length - 1 && (
-                  <div className={`flex-1 h-px mx-3 ${isDone ? "bg-accent/50" : "bg-border"}`} />
+              <div
+                key={p.id}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${
+                  done
+                    ? "bg-accent/15 text-accent-light"
+                    : active
+                      ? "bg-accent text-background shadow-[0_0_20px_rgba(0,200,150,0.3)]"
+                      : "bg-card text-muted/50 border border-border"
+                }`}
+              >
+                {done ? (
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                ) : scanning ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <p.icon className="w-3.5 h-3.5" />
                 )}
+                {p.label}
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Step: Input */}
-      {step === "input" && (
-        <div className="max-w-2xl mx-auto pt-16 space-y-8">
-          <div className="text-center space-y-3">
-            <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="w-8 h-8 text-accent-light" />
-            </div>
-            <h1 className="text-3xl font-bold">Start a new campaign</h1>
-            <p className="text-muted text-lg">
-              Paste your website — AI will research your market, find customers, and write emails
-            </p>
-          </div>
-
-          {error && (
-            <div className="p-3 rounded-xl bg-danger/10 text-danger text-sm">{error}</div>
-          )}
-
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLaunch()}
-              placeholder="yourcompany.com"
-              className="flex-1 px-5 py-4 rounded-xl bg-card border border-border text-white text-lg placeholder:text-muted/40 focus:outline-none focus:border-accent transition"
-            />
-            <button
-              onClick={handleLaunch}
-              disabled={!website.trim()}
-              className="px-8 py-4 bg-accent hover:bg-accent/80 rounded-xl font-semibold text-lg transition flex items-center gap-2 disabled:opacity-50"
-            >
-              <Search className="w-5 h-5" />
-              Analyze
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 1: Research loading */}
-      {step === "research" && (
-        <div className="p-12 rounded-2xl border border-border bg-card text-center">
-          <Loader2 className="w-12 h-12 text-accent-light animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Researching {domain}...</h2>
-          <p className="text-muted">{loadingMsg}</p>
-        </div>
-      )}
-
-      {/* Step 2: Competitors (visible once we have company info) */}
-      {currentIdx >= 1 && companyInfo && (
-        <div className="grid md:grid-cols-2 gap-4">
-          {/* Left: Product info */}
-          <div className="p-5 rounded-2xl border border-border bg-card space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-lg font-bold text-accent-light shrink-0">
-                {companyInfo.companyName[0]?.toUpperCase() || "C"}
+      {/* ============ START ============ */}
+      {phase === "start" && (
+        <div className="pt-8 md:pt-16">
+          <div className="relative p-8 md:p-12 rounded-3xl border border-border bg-card overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+            <div className="relative space-y-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent-light text-xs font-semibold tracking-wide">
+                <Zap className="w-3 h-3" />
+                AI-Powered Pipeline
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-lg">{companyInfo.companyName}</h3>
-                <p className="text-xs text-muted">{domain}</p>
-              </div>
-              <span className="px-3 py-1 rounded-full bg-accent/10 text-accent-light text-xs font-medium flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> Found
-              </span>
-            </div>
-            <p className="text-sm text-muted leading-relaxed">{companyInfo.description}</p>
-            {companyInfo.valueProps?.length > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted">Product</p>
-                <p className="text-sm font-semibold">{companyInfo.industry}</p>
-                {companyInfo.valueProps.map((v, i) => (
-                  <p key={i} className="text-sm text-muted">{v}</p>
-                ))}
-              </div>
-            )}
-          </div>
+              <h1 className="text-3xl md:text-4xl font-extrabold leading-tight tracking-tight">
+                Build your outbound<br />
+                <span className="gradient-text">in one shot</span>
+              </h1>
+              <p className="text-muted text-lg max-w-lg leading-relaxed">
+                Drop your URL below. We&apos;ll dissect your market, surface the right buyers, and draft every cold email — ready to send.
+              </p>
 
-          {/* Right: Competitors */}
-          <div className="p-5 rounded-2xl border border-border bg-card space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted">Competitors</p>
-              <span className="px-3 py-1 rounded-full bg-accent/10 text-accent-light text-xs font-medium flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> {competitors.length} found
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {(expandedCompetitors ? competitors : competitors.slice(0, 8)).map((c) => (
-                <div
-                  key={c.name}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-background/50 text-sm group hover:bg-background/80 transition"
-                >
-                  <div className="w-6 h-6 rounded bg-muted/20 flex items-center justify-center text-xs font-bold text-muted shrink-0">
-                    {c.name[0]?.toUpperCase()}
-                  </div>
-                  <span className="truncate flex-1 text-xs">{c.website || c.name}</span>
-                  <ExternalLink className="w-3 h-3 text-muted opacity-0 group-hover:opacity-100 shrink-0" />
+              {error && (
+                <div className="p-3 rounded-xl bg-danger/10 text-danger text-sm border border-danger/20">{error}</div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
+                <div className="flex-1 relative">
+                  <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted/40" />
+                  <input
+                    type="text"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
+                    placeholder="paste your website"
+                    className="w-full pl-11 pr-4 py-4 rounded-2xl bg-background border border-border text-white placeholder:text-muted/30 focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(0,200,150,0.1)] transition-all"
+                  />
                 </div>
+                <button
+                  onClick={handleAnalyze}
+                  disabled={!website.trim()}
+                  className="px-8 py-4 bg-accent hover:bg-accent/80 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-40 shadow-[0_4px_20px_rgba(0,200,150,0.25)] hover:shadow-[0_4px_30px_rgba(0,200,150,0.4)]"
+                >
+                  <Radar className="w-5 h-5" />
+                  Go
+                </button>
+              </div>
+
+              <div className="flex items-center gap-6 pt-2 text-xs text-muted/60">
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3" /> No credit card</span>
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3" /> 60-second setup</span>
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3" /> AI does the heavy lifting</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ SCANNING ============ */}
+      {phase === "scanning" && (
+        <div className="relative p-12 rounded-3xl border border-accent/20 bg-card text-center overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,200,150,0.06)_0%,transparent_70%)]" />
+          <div className="relative">
+            <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <Radar className="w-8 h-8 text-accent-light" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Scanning {domain}</h2>
+            <p className="text-muted max-w-md mx-auto">Pulling apart your site, mapping the competitive landscape, and profiling your ideal buyers</p>
+            <div className="flex justify-center gap-1 mt-8">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="w-2 h-2 rounded-full bg-accent/40 animate-pulse" style={{ animationDelay: `${i * 150}ms` }} />
               ))}
             </div>
-            {competitors.length > 8 && (
-              <button
-                onClick={() => setExpandedCompetitors(!expandedCompetitors)}
-                className="text-xs text-accent-light hover:underline flex items-center gap-1"
-              >
-                {expandedCompetitors ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                {expandedCompetitors ? "Show less" : `+${competitors.length - 8} more`}
-              </button>
-            )}
           </div>
         </div>
       )}
 
-      {/* Step 3: Campaigns / ICP Segments */}
-      {step === "campaigns" && icpSegments.length === 0 && (
-        <div className="p-12 rounded-2xl border border-border bg-card text-center">
-          <Loader2 className="w-12 h-12 text-accent-light animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Defining campaigns...</h2>
-          <p className="text-muted">Identifying ideal customer segments for your product</p>
-        </div>
-      )}
-
-      {currentIdx >= 2 && icpSegments.length > 0 && (
+      {/* ============ INTEL (Company + Competitors) ============ */}
+      {phaseIdx >= 2 && companyInfo && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted">Campaigns</p>
-            <span className="text-xs text-muted">{icpSegments.length} segments</span>
-          </div>
-          <div className="grid md:grid-cols-2 gap-3">
-            {icpSegments.map((seg, i) => (
-              <div
-                key={seg.segment}
-                onClick={() => setSelectedSegment(i)}
-                className={`p-4 rounded-xl border cursor-pointer transition ${
-                  selectedSegment === i
-                    ? "border-accent bg-accent/5"
-                    : "border-border bg-card hover:border-border/80 hover:bg-card-hover"
-                }`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Target className="w-4 h-4 text-accent-light" />
-                    <h3 className="font-semibold text-sm">{seg.segment}</h3>
+          {/* Collapsible intel header */}
+          <button
+            onClick={() => toggleSection("intel")}
+            className="w-full flex items-center justify-between px-5 py-3 rounded-2xl bg-card border border-border hover:border-border/80 transition group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4 text-accent-light" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-sm">{companyInfo.companyName}</p>
+                <p className="text-xs text-muted">{domain} · {competitors.length} rivals mapped</p>
+              </div>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-muted transition-transform ${expandedSections.has("intel") ? "rotate-180" : ""}`} />
+          </button>
+
+          {expandedSections.has("intel") && (
+            <div className="grid md:grid-cols-3 gap-3 animate-slide-up">
+              {/* Company card */}
+              <div className="md:col-span-2 p-5 rounded-2xl gradient-border space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center text-xl font-black text-accent-light shrink-0">
+                    {companyInfo.companyName[0]?.toUpperCase()}
                   </div>
-                  <span className="text-xs font-mono text-muted">{(seg.fitScore / 10).toFixed(1)}K</span>
+                  <div>
+                    <h3 className="font-bold text-lg">{companyInfo.companyName}</h3>
+                    <p className="text-xs text-muted mt-0.5">{companyInfo.industry} · {companyInfo.companySize}</p>
+                  </div>
                 </div>
-                <p className="text-xs text-muted mb-3 line-clamp-2">{seg.description}</p>
-                {seg.painPoint && seg.painPoint !== seg.description && (
-                  <div className="mb-2">
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-warning bg-warning/10 px-2 py-0.5 rounded">Pain</span>
-                    <p className="text-xs text-muted mt-1">{seg.painPoint}</p>
-                  </div>
-                )}
-                {seg.jobTitles?.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {seg.jobTitles.slice(0, 3).map((t) => (
-                      <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-background/80 text-muted">{t}</span>
+                <p className="text-sm text-muted/80 leading-relaxed">{companyInfo.description}</p>
+                {companyInfo.valueProps?.length > 0 && (
+                  <div className="space-y-1.5">
+                    {companyInfo.valueProps.map((v, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm text-muted">
+                        <ChevronRight className="w-3 h-3 text-accent-light mt-1 shrink-0" />
+                        {v}
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
-            ))}
+
+              {/* Competitor list */}
+              <div className="p-4 rounded-2xl border border-border bg-card space-y-2.5">
+                <p className="text-xs font-bold uppercase tracking-widest text-muted mb-3">Rivals</p>
+                {competitors.map((c) => (
+                  <div key={c.name} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-background/40 hover:bg-background/70 transition group cursor-default">
+                    <div className="w-6 h-6 rounded-md bg-muted/10 flex items-center justify-center text-[10px] font-bold text-muted shrink-0">
+                      {c.name[0]?.toUpperCase()}
+                    </div>
+                    <span className="text-xs truncate flex-1">{c.website || c.name}</span>
+                    <ExternalLink className="w-3 h-3 text-muted/30 group-hover:text-muted shrink-0" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ============ SEGMENTS (loading) ============ */}
+      {phase === "segments" && segments.length === 0 && (
+        <div className="p-12 rounded-3xl border border-border bg-card text-center">
+          <Loader2 className="w-10 h-10 text-accent-light animate-spin mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2">Carving out audiences</h2>
+          <p className="text-muted">Mapping buyer personas that actually convert for your product</p>
+        </div>
+      )}
+
+      {/* ============ SEGMENTS (loaded) ============ */}
+      {phaseIdx >= 3 && segments.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Target className="w-5 h-5 text-accent-light" />
+              Your audiences
+            </h2>
+            <span className="text-xs text-muted bg-card px-3 py-1 rounded-full border border-border">{segments.length} segments</span>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {segments.map((seg, i) => {
+              const isActive = activeSegment === i;
+              return (
+                <div
+                  key={seg.segment}
+                  onClick={() => setActiveSegment(i)}
+                  className={`relative p-4 rounded-2xl border cursor-pointer transition-all duration-200 group ${
+                    isActive
+                      ? "border-accent/50 bg-accent/5 shadow-[0_0_30px_rgba(0,200,150,0.08)]"
+                      : "border-border bg-card hover:border-border/60 hover:bg-card-hover"
+                  }`}
+                >
+                  {isActive && <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-accent animate-pulse" />}
+                  <h3 className="font-bold text-sm mb-1.5">{seg.segment}</h3>
+                  <p className="text-xs text-muted leading-relaxed line-clamp-2 mb-3">{seg.description}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap gap-1">
+                      {seg.jobTitles?.slice(0, 2).map((t) => (
+                        <span key={t} className="text-[10px] px-2 py-0.5 rounded-md bg-background/60 text-muted/70">{t}</span>
+                      ))}
+                    </div>
+                    <span className={`text-xs font-mono font-bold ${
+                      seg.fitScore >= 85 ? "text-accent-light" : seg.fitScore >= 70 ? "text-warning" : "text-muted"
+                    }`}>
+                      {seg.fitScore}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Step 4-5: Leads / Decision Makers */}
-      {(step === "customers" || step === "decision-makers") && leads.length === 0 && (
-        <div className="p-12 rounded-2xl border border-border bg-card text-center">
-          <Loader2 className="w-12 h-12 text-accent-light animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">
-            {step === "customers" ? "Finding potential customers..." : "Finding decision makers..."}
-          </h2>
-          <p className="text-muted">{loadingMsg || "Searching across multiple data sources"}</p>
+      {/* ============ PROSPECTING (loading) ============ */}
+      {(phase === "prospecting") && (
+        <div className="p-12 rounded-3xl border border-border bg-card text-center">
+          <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-6">
+            <Search className="w-8 h-8 text-accent-light animate-pulse" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Hunting prospects</h2>
+          <p className="text-muted">Scouring databases and the open web for matching buyers</p>
         </div>
       )}
 
-      {currentIdx >= 4 && leads.length > 0 && (
+      {/* ============ PEOPLE TABLE ============ */}
+      {phaseIdx >= 5 && leads.length > 0 && (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-            <div className="flex items-center gap-2">
-              <UserCheck className="w-4 h-4 text-accent-light" />
-              <p className="text-sm font-semibold">Decision Makers</p>
-            </div>
-            <span className="text-xs text-muted">{leads.length} found</span>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <h2 className="font-bold flex items-center gap-2">
+              <Users className="w-5 h-5 text-accent-light" />
+              Prospect list
+            </h2>
+            <span className="text-xs text-muted bg-background/50 px-3 py-1 rounded-full">{leads.length} people</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs text-muted uppercase tracking-wider border-b border-border">
-                  <th className="text-left px-5 py-3 font-semibold">Name</th>
-                  <th className="text-left px-5 py-3 font-semibold">Job Title</th>
-                  <th className="text-left px-5 py-3 font-semibold">Company</th>
-                  <th className="text-left px-5 py-3 font-semibold">Source</th>
+                <tr className="text-[11px] text-muted/60 uppercase tracking-widest border-b border-border/50">
+                  <th className="text-left px-5 py-2.5 font-semibold">Person</th>
+                  <th className="text-left px-5 py-2.5 font-semibold">Role</th>
+                  <th className="text-left px-5 py-2.5 font-semibold">Organization</th>
+                  <th className="text-left px-5 py-2.5 font-semibold">Via</th>
                 </tr>
               </thead>
               <tbody>
                 {leads.map((lead, i) => (
-                  <tr
-                    key={i}
-                    onClick={() => setSelectedLead(i)}
-                    className={`border-b border-border/50 cursor-pointer transition ${
-                      selectedLead === i ? "bg-accent/5" : "hover:bg-card-hover"
-                    }`}
-                  >
+                  <tr key={i} className="border-b border-border/30 hover:bg-accent/[0.02] transition">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-xs font-bold text-accent-light shrink-0">
-                          {lead.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center text-[11px] font-bold text-accent-light shrink-0">
+                          {initials(lead.name)}
                         </div>
-                        <span className="font-medium">{lead.name}</span>
+                        <div>
+                          <span className="font-medium text-sm">{lead.name}</span>
+                          {lead.email && <p className="text-[11px] text-muted/50 truncate max-w-[200px]">{lead.email}</p>}
+                        </div>
                       </div>
                     </td>
-                    <td className="px-5 py-3 text-muted">
+                    <td className="px-5 py-3 text-muted text-xs">
                       <div className="flex items-center gap-1.5">
-                        <Briefcase className="w-3 h-3" />
+                        <Briefcase className="w-3 h-3 shrink-0" />
                         {lead.title || "—"}
                       </div>
                     </td>
-                    <td className="px-5 py-3 text-muted">
+                    <td className="px-5 py-3 text-muted text-xs">
                       <div className="flex items-center gap-1.5">
-                        <Building2 className="w-3 h-3" />
+                        <Building2 className="w-3 h-3 shrink-0" />
                         {lead.company || "—"}
                       </div>
                     </td>
                     <td className="px-5 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md ${
                         lead.source === "hunter" ? "bg-orange-500/10 text-orange-400" :
                         lead.source === "apollo" ? "bg-blue-500/10 text-blue-400" :
                         "bg-muted/10 text-muted"
@@ -539,137 +519,123 @@ function NewCampaignContent() {
         </div>
       )}
 
-      {/* Step 6: Email Drafts */}
-      {step === "emails" && emailDrafts.length === 0 && (
-        <div className="p-12 rounded-2xl border border-border bg-card text-center">
-          <Loader2 className="w-12 h-12 text-accent-light animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Writing personalized emails...</h2>
-          <p className="text-muted">Crafting unique outreach for each decision maker</p>
+      {/* ============ DRAFTING (loading) ============ */}
+      {phase === "drafting" && emailDrafts.length === 0 && (
+        <div className="p-12 rounded-3xl border border-border bg-card text-center">
+          <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-6">
+            <PenLine className="w-8 h-8 text-accent-light animate-pulse" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Composing messages</h2>
+          <p className="text-muted">Writing a tailored pitch for each prospect</p>
         </div>
       )}
 
-      {currentIdx >= 5 && emailDrafts.length > 0 && (
-        <div className="grid md:grid-cols-5 gap-4">
-          {/* Left: lead list */}
-          <div className="md:col-span-2 space-y-2 max-h-[500px] overflow-y-auto pr-1">
-            {emailDrafts.map((draft, i) => (
-              <div
-                key={i}
-                onClick={() => setSelectedLead(i)}
-                className={`p-3 rounded-xl border cursor-pointer transition ${
-                  selectedLead === i ? "border-accent bg-accent/5" : "border-border bg-card hover:bg-card-hover"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-xs font-bold text-accent-light shrink-0">
-                    {draft.leadName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm truncate">{draft.leadName}</p>
-                    <p className="text-xs text-muted truncate">{draft.leadTitle} · {draft.leadCompany}</p>
-                  </div>
-                  {draft.to !== "email not found" && (
-                    <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
-                  )}
-                </div>
-                {draft.to !== "email not found" && (
-                  <p className="text-xs text-muted mt-1.5 pl-10 truncate">{draft.to}</p>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Right: email preview */}
-          <div className="md:col-span-3 p-5 rounded-2xl border border-border bg-card">
-            {emailDrafts[selectedLead] && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 pb-3 border-b border-border">
-                  <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-sm font-bold text-accent-light">
-                    {emailDrafts[selectedLead].leadName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
-                  </div>
-                  <div>
-                    <p className="font-semibold">{emailDrafts[selectedLead].leadName}</p>
-                    <p className="text-xs text-muted">{emailDrafts[selectedLead].leadTitle} · {emailDrafts[selectedLead].leadCompany}</p>
-                  </div>
-                </div>
-                <div className="text-sm space-y-1">
-                  <p className="text-muted">
-                    <span className="text-xs font-semibold uppercase tracking-wider mr-2">To</span>
-                    {emailDrafts[selectedLead].to}
-                  </p>
-                  <p className="text-muted">
-                    <span className="text-xs font-semibold uppercase tracking-wider mr-2">Subj</span>
-                    <span className="text-white font-medium">{emailDrafts[selectedLead].subject}</span>
-                  </p>
-                </div>
-                <div className="text-sm leading-relaxed whitespace-pre-wrap text-foreground/80 pt-2">
-                  {emailDrafts[selectedLead].body}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Action buttons */}
-      {step === "campaigns" && icpSegments.length > 0 && (
-        <button
-          onClick={handleFindLeads}
-          className="w-full py-4 bg-accent hover:bg-accent/80 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-lg"
-        >
-          <Users className="w-5 h-5" />
-          Find Potential Customers
-          <ArrowRight className="w-5 h-5" />
-        </button>
-      )}
-
-      {step === "decision-makers" && leads.length > 0 && (
-        <button
-          onClick={handleWriteEmails}
-          className="w-full py-4 bg-accent hover:bg-accent/80 rounded-xl font-semibold transition flex items-center justify-center gap-2 text-lg"
-        >
-          <Mail className="w-5 h-5" />
-          Write Emails
-          <ArrowRight className="w-5 h-5" />
-        </button>
-      )}
-
-      {step === "ready" && (
+      {/* ============ EMAIL DRAFTS ============ */}
+      {phaseIdx >= 7 && emailDrafts.length > 0 && (
         <div className="space-y-4">
-          {/* What happens next */}
-          <div className="flex items-center justify-center gap-6 py-4">
-            <div className="text-center">
-              <div className="w-10 h-10 rounded-full border-2 border-accent bg-accent/10 flex items-center justify-center mx-auto mb-1">
-                <Send className="w-4 h-4 text-accent-light" />
-              </div>
-              <p className="text-xs text-muted">Send emails</p>
+          <h2 className="font-bold flex items-center gap-2">
+            <Mail className="w-5 h-5 text-accent-light" />
+            Draft outreach
+          </h2>
+          <div className="grid md:grid-cols-5 gap-3">
+            {/* Sidebar */}
+            <div className="md:col-span-2 space-y-1.5 max-h-[480px] overflow-y-auto">
+              {emailDrafts.map((d, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveDraft(i)}
+                  className={`w-full text-left p-3 rounded-xl border transition-all ${
+                    activeDraft === i
+                      ? "border-accent/40 bg-accent/5"
+                      : "border-transparent hover:bg-card-hover"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center text-[11px] font-bold text-accent-light shrink-0">
+                      {initials(d.leadName)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{d.leadName}</p>
+                      <p className="text-[11px] text-muted truncate">{d.leadTitle} · {d.leadCompany}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
-            <div className="w-8 h-px bg-border" />
-            <div className="text-center">
-              <div className="w-10 h-10 rounded-full border-2 border-border flex items-center justify-center mx-auto mb-1">
-                <Globe className="w-4 h-4 text-muted" />
-              </div>
-              <p className="text-xs text-muted">Book meetings</p>
-            </div>
-            <div className="w-8 h-px bg-border" />
-            <div className="text-center">
-              <div className="w-10 h-10 rounded-full border-2 border-border flex items-center justify-center mx-auto mb-1">
-                <Sparkles className="w-4 h-4 text-muted" />
-              </div>
-              <p className="text-xs text-muted">Learn & double down</p>
+
+            {/* Preview */}
+            <div className="md:col-span-3 p-5 rounded-2xl gradient-border">
+              {emailDrafts[activeDraft] && (() => {
+                const d = emailDrafts[activeDraft];
+                return (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 pb-3 border-b border-border">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center text-sm font-bold text-accent-light">
+                        {initials(d.leadName)}
+                      </div>
+                      <div>
+                        <p className="font-bold">{d.leadName}</p>
+                        <p className="text-xs text-muted">{d.leadTitle} · {d.leadCompany}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted w-10">To</span>
+                        <span className="text-muted">{d.to}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted w-10">Subj</span>
+                        <span className="font-semibold">{d.subject}</span>
+                      </div>
+                    </div>
+                    <div className="pt-3 text-sm leading-relaxed whitespace-pre-wrap text-foreground/80">{d.body}</div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
+        </div>
+      )}
 
-          <button
-            onClick={handleLaunchCampaign}
-            className="w-full py-4 bg-accent hover:bg-accent/80 rounded-xl font-bold transition flex items-center justify-center gap-2 text-lg animate-pulse-glow"
-          >
-            <Send className="w-5 h-5" />
-            Start Outreach
+      {/* ============ ACTION BUTTONS ============ */}
+      <div className="pt-6 space-y-3">
+        {phase === "segments" && segments.length > 0 && (
+          <button onClick={handleProspect} className="w-full py-4 bg-accent hover:bg-accent/80 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(0,200,150,0.25)] hover:shadow-[0_4px_30px_rgba(0,200,150,0.4)]">
+            <Search className="w-5 h-5" />
+            Hunt prospects
             <ArrowRight className="w-5 h-5" />
           </button>
-        </div>
-      )}
+        )}
+
+        {phase === "people" && leads.length > 0 && (
+          <button onClick={handleDraftEmails} className="w-full py-4 bg-accent hover:bg-accent/80 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(0,200,150,0.25)] hover:shadow-[0_4px_30px_rgba(0,200,150,0.4)]">
+            <PenLine className="w-5 h-5" />
+            Draft messages
+            <ArrowRight className="w-5 h-5" />
+          </button>
+        )}
+
+        {phase === "launch" && (
+          <>
+            <div className="flex items-center justify-center gap-4 py-3 text-xs text-muted">
+              <span className="flex items-center gap-1.5"><Sparkles className="w-3 h-3 text-accent-light" /> Emails ready</span>
+              <span className="text-border">→</span>
+              <span>Send & track</span>
+              <span className="text-border">→</span>
+              <span>Book calls</span>
+              <span className="text-border">→</span>
+              <span>Close deals</span>
+            </div>
+            <button
+              onClick={() => router.push("/dashboard/campaigns")}
+              className="w-full py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-accent to-[#00b4d8] hover:opacity-90 shadow-[0_4px_30px_rgba(0,200,150,0.3)] animate-pulse-glow"
+            >
+              <Send className="w-5 h-5" />
+              Launch campaign
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
